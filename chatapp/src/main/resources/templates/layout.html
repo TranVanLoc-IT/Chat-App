@@ -1,0 +1,489 @@
+
+<!DOCTYPE html>
+<html lang="en" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8">
+    <title layout:title-pattern="$CONTENT_TITLE - $LAYOUT_TITLE"></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+    <div id="header">
+                <!-- component -->
+        <div class="bg-white">
+            <div class="border py-3 px-6 bg-gradient-to-bl from-fuchsia-200 to-indigo-400">
+            <div class="flex justify-between">
+                <div class="flex items-center">
+                <img src="https://th.bing.com/th/id/OIG3.NVLJwq9.OoT4capjEmYj?w=270&h=270&c=6&r=0&o=5&dpr=1.6&pid=ImgGn" alt="Brand" class="h-8 w-8">
+                <div th:each="u: ${session.uid}">
+                    <span class="ml-2 font-semibold text-[#252C32]" id="name" th:if="${u.id == session.id}" th:text="${u.username}"></span>
+                </div>
+                </div>
+        
+                <div class="ml-6 flex flex-1 gap-x-3">
+                <input type="text" class="w-full rounded-md border border-[#DDE2E4] px-3 py-2 text-sm search-input" onchange="find('chatName', 'chatList')" placeholder="Tìm chat.."/>
+                </div>
+        
+                <div class="ml-2 flex">
+                <a th:href="@{http://localhost:9090/{id}/tai-khoan(id=${session.id})}" class="flex cursor-pointer items-center gap-x-1 rounded-md py-2 px-4 hover:bg-gray-100">
+                    
+                    <i class='h-5 w-5 text-gray-500 fas fa-user-circle-o fa-sm' aria-hidden="true"></i>
+
+                    <span class="text-sm font-medium">Tài khoản</span>
+                </a>
+        
+                <div class="flex cursor-pointer items-center gap-x-1 rounded-md py-2 px-4 hover:bg-gray-100">
+                    <div class="relative">
+                    <i class='h-5 w-5 text-gray-500 fas fa-bell-o fa-sm' aria-hidden="true"></i>
+                    <span class="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 p-2 text-xs text-white">3</span>
+                    </div>
+                    <span class="text-sm font-medium">Thông báo</span>
+                </div>
+    
+                <div class="ml-2 flex cursor-pointer items-center gap-x-1 rounded-md border py-2 px-4 hover:bg-gray-100">
+                    <span class="text-sm font-medium"><a th:href="@{http://localhost:9090/{id}/dang-xuat(id = ${session.id})}" target="_blank" rel="noopener noreferrer">Đăng xuất</a></span>
+                </div>
+                </div>  
+            </div>
+        
+            <div class="mt-4 flex items-center justify-between">
+                <div class="flex gap-x-2 py-1 px-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-sm font-medium">Việt Nam</span>
+                </div>
+        
+                <div class="flex gap-x-8">
+                    
+                <span class="cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100" id="allChat">Tất cả</span>
+                <span class="cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100" id="groupOnly">Nhóm</span>
+                <span class="cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100" id="searchBar">Tìm kiếm</span>
+                <div id="search-container" class="z-20 ml-20 absolute p-4 my-10 invisible">
+                    <input type="text" id="search-input" class="ring-1 ring-pink-400 p-3 rounded text-dark-500" placeholder="Search...">
+                    <button class="rounded bg-green-500 p-2" onclick="find('message', 'mainChatArea')">Search</button>
+                </div>
+                <span class="cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100"><a th:href="@{http://localhost:9090/{id}/trang-chu/ket-ban(id = ${session.id})}">Kết bạn</a></span>
+                <span class="cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100">Tin nhắn chờ</span>
+                <span class="cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100" id="groupMember">Thành viên
+                    <div id="memberList" class="z-20 absolute border border-2 overflow-y-auto h-32 text-dark-300 my-4 ml-0 invisible" style="background-color: white !important;">
+                        
+                    </div>
+                </span>
+                <span class="cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100" id="addNewMember">Thêm thành viên</span>
+                <div id="formAdd" class="z-20 absolute bg-white-500 text-dark-300 my-4 ml-0 invisible">
+                    <form th:action="@{http://localhost:9090/{id}/them-tv/{conId}(id=${session.id}, conId=${conversationId})}" method="post" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+                        <div class="mb-6">
+                          <label class="block text-gray-700 text-sm font-bold mb-2" for="frList">
+                            Chọn danh sách bạn bè vào nhóm
+                          </label>
+                          <div id="addMemberList" class="text-dark">
+                             
+                          </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                          <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+                            Thêm
+                          </button>
+                            
+                        </div>
+                      </form>
+                </div>
+                </div>
+                <div class="active-addgr-form hover:cursor-pointer rounded-sm py-1 px-2 text-sm font-medium hover:bg-gray-100" >Thêm nhóm
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+        <!-- component -->
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="w-1/4 bg-white border-r border-gray-300">
+        <!-- Sidebar Header -->
+        <header class="p-4 border-b border-gray-300 flex justify-between items-center bg-indigo-600 text-white">
+            <h1 class="text-2xl font-semibold">Trò chuyện</h1>
+            <div class="relative">
+            <button id="menuButton" class="focus:outline-none">
+                
+            </button>
+            <!-- Menu Dropdown -->
+            <div id="menuDropdown" class="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-md shadow-lg hidden">
+               
+            </div>
+            </div>
+        </header>
+        
+        <!-- Contact List -->
+        <div class="overflow-y-scroll h-screen p-3 mb-9 pb-20" th:if="${session.convers}" id="chatList">
+            <div class="flex items-center mb-4 cursor-pointer hover:bg-gray-100 p-2 rounded-md" th:each="user: ${session.convers}">
+                <a th:href="@{http://localhost:9090/{id}/tro-chuyen/tin-nhan/{friendId}/{friendName}(friendId=${user.id}, friendName=${user.username}, id=${session.id})}" th:id="${user.id}" onclick="UpdateStatus()">
+                    <div class="flex flex-row py-4 px-2 justify-center items-center border-b-2 w-full">
+                        <div class="w-1/4">
+                            <img
+                            src="https://cdn0.iconfinder.com/data/icons/white-cat-emoticon-filled/64/cute_cat_kitten_face_avatar-27-512.png"
+                            class="object-cover h-12 w-12 rounded-full"
+                            alt=""
+                            />
+                        </div>
+                        <div class="w-3/4 mx-5">
+                            <div class="text-lg w-full font-semibold w-full chatName" th:text="${user.username}"></div>
+                            <div th:if="${user.latestInfo}">
+                                <span th:text="${user.latestInfo.senderName}" class="text-sm text-gray-500 latestSenderName"></span>
+                                <span class="text-bold overflow-x-hidden w-1/2" th:text="${user.latestInfo.latestMessage}"></span> - <span class="text-gray-500" th:text="${user.latestInfo.latestDate}"></span>
+                            </div>
+                            <div th:unless="${user.latestInfo}">
+                                <span class="text-bold mx-auto w-1/2">Nhấn để bắt đầu chat !!</span> - <span th:class="'text-gray-500 text-red-500 u_' + ${user.id}">Mới !!</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Main Chat Area -->
+        <div class="flex-1" layout:fragment="content">
+            <p class="text-lg text-center mx-auto my-5 font-bold">Not content displayed</p>
+        </div>
+    <div id="add-gr-form" class="z-20 w-full max-w-xs bg-white-400 invisible relative mt-6 mx-auto">
+        <button class="close-form text-lg relative text-right pr-[-5px] p-5  mx-3">X</button>
+        <h2 class="text-center text-bold">Tạo nhóm chat</h2>
+        <form th:action="@{http://localhost:9090/{id}/tao-nhom(id=${session.id})}" method="post" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
+              Tên nhóm
+            </label>
+            <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="groupName" name="groupName" type="text" placeholder="Username">
+          </div>
+          <div class="mb-6">
+            <label class="block text-gray-700 text-sm bg-white-500 font-bold mb-2" for="frList">
+              Chọn danh sách bạn bè vào nhóm
+            </label>
+            <div th:if="${session.friends}">
+                <div th:each="user: ${session.friends}">
+                    <input type="checkbox" name="cbParticipants" th:value="${user.id}"><label for="" th:text="${user.username}"></label>
+                </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit" onclick="checkGroup(event)" id="btnCreateGroup">
+              Tạo
+            </button>
+            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline close-form" type="button" >
+                Hủy
+            </button>
+              
+          </div>
+        </form>
+    </div>
+    <script>
+            const pathSegments = window.location.href.split('/');
+            const id = pathSegments[3] == undefined ? pathSegments[4] : pathSegments[3];
+            const senderName = document.querySelectorAll(".latestSenderName");
+            const accName = document.getElementById("name").textContent;
+            for (var i = 0; i < senderName.length; i++) {
+                if(senderName[i].textContent == accName)
+                {
+                    senderName[i].textContent = "Bạn";
+                }
+                else{
+                    senderName[i].textContent = senderName[i].textContent.split(' ')[senderName[i].textContent.lastIndexOf(' ') - 1];
+                }
+                }
+               
+    // JavaScript for showing/hiding the menu
+    function checkGroup(event) {
+        // Lấy tất cả các checkbox trên trang
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    
+        let count = 0;
+        // Lặp qua tất cả các checkbox và kiểm tra xem có được chọn không
+        checkboxes.forEach(function(checkbox) {
+            if (checkbox.checked) {
+                count++;
+            }
+        });
+        if(count < 2)
+        {
+            confirm("Thành viên phải 2 người tối thiểu !!")
+            event.preventDefault();
+        }
+    }
+    const menuButton = document.getElementById('menuButton');
+    const menuDropdown = document.getElementById('menuDropdown');
+    const btnSend = document.getElementById('btnSend');
+    
+    menuButton.addEventListener('click', () => {
+        if (menuDropdown.classList.contains('hidden')) {
+        menuDropdown.classList.remove('hidden');
+        } else {
+        menuDropdown.classList.add('hidden');
+        }
+    });
+    
+    // Close the menu if you click outside of it
+    document.addEventListener('click', (e) => {
+        if (!menuDropdown.contains(e.target) && !menuButton.contains(e.target)) {
+        menuDropdown.classList.add('hidden');
+        }
+    });
+    $(document).ready(function(){
+        $("button.close-form").click(function(){
+            $("#add-gr-form").toggleClass("invisible");
+        });
+        $(".active-addgr-form").click(function(){
+            $("#add-gr-form").toggleClass("invisible");
+        });
+        function UpdateStatus(){
+            $("span.u_" + $(this).attr("id")).text("");
+        };
+        
+    $("#groupMember").click(function(){
+            $("#memberList").toggleClass("invisible");
+            $.ajax({
+                url: '/' + id + '/getParticipants/' + window.location.href.split("/")[6],
+                contentType: 'application/json',
+                method: 'GET',
+                success: function (data) {
+                    var userList = $('#memberList');
+                    userList.empty(); // Clear the existing list
+                    $.each(data, function (index, e) {
+                        userList.append(`<div class="p-2 bg-white-400">${e.username}</div>`);
+                        
+                    });
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.log(errorThrown);
+                }
+
+            });
+    });
+    
+        $("#groupOnly").click(function(){
+            $.ajax({
+                url: '/' + id + '/groupOnly',
+                contentType: 'application/json',
+                method: 'GET',
+                success: function(data){
+                    var userList = $('#chatList');
+                    userList.empty(); // Clear the existing list
+                    $.each(data, function(index, e) {
+                    if(e.latestInfo != null)
+                    {
+                        userList.append(`<div class="flex items-center mb-4 cursor-pointer hover:bg-gray-100 p-2 rounded-md">
+                <a href="http://localhost:9090/${id}/tro-chuyen/tin-nhan/${e.id}/${e.username}" id="${e.id}" onclick="UpdateStatus()">
+                    <div class="flex flex-row py-4 px-2 justify-center items-center border-b-2 w-full">
+                        <div class="w-1/4">
+                            <img
+                            src="https://cdn0.iconfinder.com/data/icons/white-cat-emoticon-filled/64/cute_cat_kitten_face_avatar-27-512.png"
+                            class="object-cover h-12 w-12 rounded-full"
+                            alt=""
+                            />
+                        </div>
+                        <div class="w-3/4 mx-5">
+                            <div class="text-lg w-full font-semibold w-full chatName">${e.username}</div>
+                            <div>
+                                <span class="text-sm text-gray-500 latestSenderName">${e.latestInfo.senderName}</span>
+                                <span class="text-bold overflow-x-hidden w-1/2">${e.latestInfo.latestMessage}</span> - <span class="text-gray-500">${e.latestInfo.latestDate}</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>`);
+                    }
+                    else{
+                        userList.append(
+                        `<div class="flex items-center mb-4 cursor-pointer hover:bg-gray-100 p-2 rounded-md">
+                <a href="http://localhost:9090/${id}/tro-chuyen/tin-nhan/${e.id}/${e.username}" id="${e.id}" onclick="UpdateStatus()">
+                    <div class="flex flex-row py-4 px-2 justify-center items-center border-b-2 w-full">
+                        <div class="w-1/4">
+                            <img
+                            src="https://cdn0.iconfinder.com/data/icons/white-cat-emoticon-filled/64/cute_cat_kitten_face_avatar-27-512.png"
+                            class="object-cover h-12 w-12 rounded-full"
+                            alt=""
+                            />
+                        </div>
+                        <div class="w-3/4 mx-5">
+                            <div class="text-lg w-full font-semibold w-full chatName">${e.username}</div>
+                            <div>
+                                <span class="text-bold mx-auto w-1/2">Nhấn để bắt đầu chat !!</span> - <span class="text-gray-500 text-red-500 u_${e.id}">Mới !!</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>`);
+                    }
+                    });
+                },
+                error: function(jqXHR, textStatus, errorThrown){
+                    console.log(errorThrown);
+                }
+
+            });
+        });
+        
+        $("#allChat").click(function(){
+            $.ajax({
+                url: '/' + id + '/allChat',
+                contentType: 'application/json',
+                method: 'GET',
+                success: function(data){
+                    var userList = $('#chatList');
+                    userList.empty(); // Clear the existing list
+                    $.each(data, function(index, e) {
+                    if(e.latestInfo != null)
+                    {
+                        userList.append(`<div class="flex items-center mb-4 cursor-pointer hover:bg-gray-100 p-2 rounded-md">
+                <a href="http://localhost:9090/${id}/tro-chuyen/tin-nhan/${e.id}/${e.username}" id="${e.id}" onclick="UpdateStatus()">
+                    <div class="flex flex-row py-4 px-2 justify-center items-center border-b-2 w-full">
+                        <div class="w-1/4">
+                            <img
+                            src="https://cdn0.iconfinder.com/data/icons/white-cat-emoticon-filled/64/cute_cat_kitten_face_avatar-27-512.png"
+                            class="object-cover h-12 w-12 rounded-full"
+                            alt=""
+                            />
+                        </div>
+                        <div class="w-3/4 mx-5">
+                            <div class="text-lg w-full font-semibold w-full chatName">${e.username}</div>
+                            <div>
+                                <span class="text-sm text-gray-500 latestSenderName">${e.latestInfo.senderName}</span>
+                                <span class="text-bold overflow-x-hidden w-1/2">${e.latestInfo.latestMessage}</span> - <span class="text-gray-500">${e.latestInfo.latestDate}</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>`);
+                    }
+                    else{
+                        userList.append(
+                        `<div class="flex items-center mb-4 cursor-pointer hover:bg-gray-100 p-2 rounded-md">
+                <a href="http://localhost:9090/${id}/tro-chuyen/tin-nhan/${e.id}/${e.username}" id="${e.id}" onclick="UpdateStatus()">
+                    <div class="flex flex-row py-4 px-2 justify-center items-center border-b-2 w-full">
+                        <div class="w-1/4">
+                            <img
+                            src="https://cdn0.iconfinder.com/data/icons/white-cat-emoticon-filled/64/cute_cat_kitten_face_avatar-27-512.png"
+                            class="object-cover h-12 w-12 rounded-full"
+                            alt=""
+                            />
+                        </div>
+                        <div class="w-3/4 mx-5">
+                            <div class="text-lg w-full font-semibold w-full chatName">${e.username}</div>
+                            <div>
+                                <span class="text-bold mx-auto w-1/2">Nhấn để bắt đầu chat !!</span> - <span class="text-gray-500 text-red-500 u_${e.id}">Mới !!</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>`);
+                    }
+                    });
+                },
+                error: function(jqXHR, textStatus, errorThrown){
+                    console.log(errorThrown);
+                }
+
+            });
+        });
+        $("#friendOnly").click(function(){
+            alert("onclick");
+            $.ajax({
+                url: '/' + id + '/friendOnly',
+                contentType: 'application/json',
+                method: 'GET',
+                success: function(data){
+                    var userList = $('#chatList');
+                        userList.empty(); // Clear the existing list
+                        $.each(data, function(index, e) {
+                        if(e.latestInfo != null)
+                        {
+                            userList.append(`<div class="flex flex-row py-4 px-2 justify-center items-center border-b-2 w-full">
+                                <div class="w-1/4">
+                                    <img
+                                    src="https://cdn0.iconfinder.com/data/icons/white-cat-emoticon-filled/64/cute_cat_kitten_face_avatar-27-512.png"
+                                    class="object-cover h-12 w-12 rounded-full"
+                                    alt=""
+                                    />
+                                </div>
+                                <div class="w-full">
+                                    <div class="text-lg font-semibold">${e.username}</div>
+                                    <div>
+                                        <span class="text-bold mx-auto w-1/2">Nhấn để bắt đầu chat !!</span> - <span th:class="'text-gray-500 text-red-500 u_' + ${user.id}">Bạn mới</span>
+                                    </div>
+                                </div>
+                            </div>`);
+                        }
+                        else{
+                            userList.append(
+                            `<div class="flex flex-row py-4 px-2 justify-center items-center border-b-2 w-full">
+                                <div class="w-1/4">
+                                    <img
+                                    src="https://cdn0.iconfinder.com/data/icons/white-cat-emoticon-filled/64/cute_cat_kitten_face_avatar-27-512.png"
+                                    class="object-cover h-12 w-12 rounded-full"
+                                    alt=""
+                                    />
+                                </div>
+                                <div class="w-full">
+                                    <div class="text-lg font-semibold">${e.username}</div>
+                                    <div>
+                                        <span class="text-bold overflow-x-hidden w-1/2">${e.latestInfo.latestMessage}</span> - <span class="text-gray-500">${user.latestInfo.latestDate}</span>
+                                    </div>
+                                </div>
+                            </div>`);
+                        }
+                        });
+                },
+                error: function(jqXHR, textStatus, errorThrown){
+                    console.log(errorThrown);
+                }
+
+            });
+        });
+    })
+    const searchInput = document.getElementById('search-input');
+    function find(objectFind, areaFind) {
+        var area = document.getElementById(areaFind);
+        var searchTerm = searchInput.value.trim().toLowerCase();
+        var messages = area.getElementsByClassName(objectFind);
+
+        let closestMatch = '';
+        let closestMatchIndex = -1;
+        let foundMatch = false; // kiem tra kq
+
+        for (let message of messages) {
+            const messageContent = message.textContent.toLowerCase();
+            if (messageContent.includes(searchTerm)) {
+                const distance = Math.abs(messageContent.indexOf(searchTerm) - searchTerm.length);
+                if (closestMatchIndex === -1 || distance < closestMatchIndex) {
+                    closestMatch = message;
+                    closestMatchIndex = distance;
+                }
+                foundMatch = true; // danh dau kq
+            }
+        }
+
+        for (let message of messages) {
+            if (message === closestMatch) {
+                message.classList.add('text-green-500', 'text-bold');
+                message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                message.classList.remove('text-green-500', 'text-bold');
+            }
+        }
+
+        // Kiểm tra xem có tin nhắn phù hợp với kết quả tìm kiếm không, nếu không, không highlight
+        if (!foundMatch) {
+            for (let message of messages) {
+                message.classList.remove('text-green-500', 'text-bold');
+            }
+        }
+    };
+    </script>
+
+</body>
+</html>
